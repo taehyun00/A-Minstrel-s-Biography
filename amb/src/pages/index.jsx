@@ -7,7 +7,7 @@ function Index() {
     return(
     <div className='title_div'>
        <p className='title'>어느 음유시인 이야기</p>
-       <NavLink to='/start'><img src={buttons}/></NavLink>
+       <NavLink to='/intro'><img src={buttons}/></NavLink>
     </div>
     )
 }

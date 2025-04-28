@@ -12,8 +12,8 @@ function Adv() {
         const num = Math.floor(Math.random() * 3) + 1;
         plusidx(num)
         }
-        else if(idx >= 3){
-
+        else if(idx <= 3){
+            plusidx(idx+1)
         }
         
     }
@@ -22,7 +22,16 @@ function Adv() {
          <p className='title'>모험</p>
          <div className='title_des'>
          <p>{sen[idx]}</p>
+         {idx < 2&& (
          <button onClick={plus}>다음</button>
+         )}
+         
+         {idx > 0 && idx<=3 &&(
+            <div className='tilte_des'>
+            <button>전투</button>
+            <button>도망가기</button>
+            </div>
+         )}
          </div>
         <Navi />
     </div>

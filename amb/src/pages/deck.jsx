@@ -3,66 +3,72 @@ import '../App.css';
 import Navi from './navi';
 
 function Deck() {
+    const initialSongs = ["상어의 노래", "치유의 노래", "사자의 노래", "스튜의 노래", "용사의 노래"];
+
     const [deck, setDeck] = useState([]);
     const [nousedeck, setNousedeck] = useState([]);
 
     useEffect(() => {
-        // sessionStorage에서 저장된 값이 있으면 가져오고, 없으면 초기값 설정
-        const savedDeck = sessionStorage.getItem('myDeck');
-        const savedNoDeck = sessionStorage.getItem('myNoDeck');
+        try {
+            const savedDeck = sessionStorage.getItem('myDeck');
+            const savedNoDeck = sessionStorage.getItem('myNoDeck');
 
-        if (savedDeck && savedNoDeck) {
-            setDeck(JSON.parse(savedDeck));
-            setNousedeck(JSON.parse(savedNoDeck));
-        } else {
-            const initialDeck = ["사자의 노래", "스튜의 노래", "용사의 노래"];
-            const initialNoDeck = ["상어의 노래", "치유의 노래"];
-            setDeck(initialDeck);
-            setNousedeck(initialNoDeck);
-           
-            sessionStorage.setItem('myDeck', JSON.stringify(initialDeck));
-            sessionStorage.setItem('myNoDeck', JSON.stringify(initialNoDeck));
+            if (savedDeck) {
+                const parsedDeck = JSON.parse(savedDeck);
+                if (Array.isArray(parsedDeck)) {
+                    setDeck(parsedDeck);
+                    console.log("가져온 덱:", parsedDeck);
+                } else {
+                    console.warn("myDeck 값이 배열이 아님. 초기화함.");
+                    const defaultDeck = [];
+                    setDeck(defaultDeck);
+                    sessionStorage.setItem('myDeck', JSON.stringify(defaultDeck));
+                }
+            } else {
+                const defaultDeck = [];
+                setDeck(defaultDeck);
+                sessionStorage.setItem('myDeck', JSON.stringify(defaultDeck));
+            }
+
+            if (savedNoDeck) {
+                const parsedNoDeck = JSON.parse(savedNoDeck);
+                if (Array.isArray(parsedNoDeck) && parsedNoDeck.length > 0) {
+                    setNousedeck(parsedNoDeck);
+                } else {
+                    setNousedeck(initialSongs);
+                    sessionStorage.setItem('myNoDeck', JSON.stringify(initialSongs));
+                }
+            } else {
+                setNousedeck(initialSongs);
+                sessionStorage.setItem('myNoDeck', JSON.stringify(initialSongs));
+            }
+        } catch (error) {
+            console.error('세션 불러오기 에러:', error);
+            setDeck([]);
+            setNousedeck(initialSongs);
+            sessionStorage.setItem('myDeck', JSON.stringify([]));
+            sessionStorage.setItem('myNoDeck', JSON.stringify(initialSongs));
         }
     }, []);
 
     useEffect(() => {
-        const handleBeforeUnload = () => {
-            sessionStorage.removeItem('myDeck');
-        };
+        sessionStorage.setItem('myDeck', JSON.stringify(deck));
+        console.log('deck이 변경되었습니다:', deck);
+    }, [deck]);
 
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        
-        return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-        };
-    }, []);
-
-    const addSong = (song) => {
-        const updatedDeck = [...deck, song];
-        setDeck(updatedDeck);
-        sessionStorage.setItem('myDeck', JSON.stringify(updatedDeck));
-    };
+    useEffect(() => {
+        sessionStorage.setItem('myNoDeck', JSON.stringify(nousedeck));
+    }, [nousedeck]);
 
     const listdown = (item) => {
-        const updatedDecks = [...nousedeck, item];
-        setNousedeck(updatedDecks);
-        sessionStorage.setItem('myNoDeck', JSON.stringify(updatedDecks));
-        const newdeck = deck.filter((i) => i !== item);
-        setDeck(newdeck);
-        console.log("보관덱 " + nousedeck)
+        setDeck(prev => prev.filter(i => i !== item));
+        setNousedeck(prev => [...prev, item]);
     };
 
     const listup = (item) => {
-        const updatedDecks = [...deck, item];
-        setDeck(updatedDecks);
-        sessionStorage.setItem('myDeck', JSON.stringify(updatedDecks));
-        const newdeck = nousedeck.filter((i) => i !== item);
-        setNousedeck(newdeck);
-        console.log("덱" + deck)
+        setNousedeck(prev => prev.filter(i => i !== item));
+        setDeck(prev => [...prev, item]);
     };
-
-    let i = 0;
-    let j = 0;
 
     return (
         <div className='title_div'>
@@ -71,15 +77,27 @@ function Deck() {
                 <p>현재 덱</p>
                 <br />
                 <div className='title_des_deck'>
-                    {deck.map((item, index) => (
-                        <button onClick={() => listdown(item)} key={index}><p>{++i}.{item}</p></button>
-                    ))}
+                    {deck.length > 0 ? (
+                        deck.map((item, index) => (
+                            <button onClick={() => listdown(item)} key={item}>
+                                <p>{index + 1}.{item}</p>
+                            </button>
+                        ))
+                    ) : (
+                        <p>현재 덱이 비어 있습니다.</p>
+                    )}
                 </div>
                 <p>보유 노래</p>
                 <div className='title_des_deck'>
-                    {nousedeck.map((item, index) => (
-                        <button onClick={() => listup(item)} key={index}><p>{++j}.{item}</p></button>
-                    ))}
+                    {nousedeck.length > 0 ? (
+                        nousedeck.map((item, index) => (
+                            <button onClick={() => listup(item)} key={item}>
+                                <p>{index + 1}.{item}</p>
+                            </button>
+                        ))
+                    ) : (
+                        <p>보유 노래가 없습니다.</p>
+                    )}
                 </div>
             </div>
             <Navi />

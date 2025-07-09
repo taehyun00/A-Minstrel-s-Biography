@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { supabase } from "../../../suparbase";
+import React from "react";
 
 export default function Home() {
   const router = useRouter();

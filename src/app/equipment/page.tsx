@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "../../../suparbase";
+import React from "react";
 
 type Equipment = {
   name: string;

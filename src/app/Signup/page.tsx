@@ -89,7 +89,7 @@ export default function Home() {
 
   return (
     <div className="flex items-center justify-center flex-col">
-      <div className="h-[100vh] w-[80vh] bg-[#000000] flex justify-center items-center flex-col gap-[5vh] ">
+      <div className="h-[100vh] w-[90vh] bg-[#000000] flex justify-center items-center flex-col gap-[5vh] ">
         <p
           className="text-[#FFFFFF] text-[1.8vh] relative top-[-30vh] mr-[56vh] transition-all duration-300 hover:text-[2vh]"
           onClick={() => backHome()}

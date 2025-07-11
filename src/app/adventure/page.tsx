@@ -2,30 +2,34 @@
 
 import { supabase } from "../../../suparbase";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState ,useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import attack from "../images/attack.svg";
 import defense from "../images/defense.svg";
 import run from "../images/run.svg";
 import Image from "next/image";
 import { calculateDamage, Stats } from "../utils/attack";
 
-
 export default function Adventure() {
   const logRef = useRef<HTMLDivElement>(null);
-  const [playername, setPlayername] = useState<string | null>(null);
-  const [turn,setturn] = useState<"player" | "monster">("player")
-  const [monserdefense , setmd] = useState(false);
-  const [playerdefense , setpd] = useState(false);
-  const [MYstats, setMYStats] = useState({ attack: 0, defense: 0, critical: 0 });
-  const [stats, setStats] = useState({ attack: 0, defense: 0, hp: 0, critical: 0 });
+  const router = useRouter();
+
+  // 상태 관리
+  const [playerName, setPlayerName] = useState<string | null>(null);
+  const [turn, setTurn] = useState<"player" | "monster">("player");
   const [playerStats, setPlayerStats] = useState({
-    level :0,
+    level: 0,
     attack: 0,
     defense: 0,
     hp: 0,
     critical: 0,
     exp: 0,
-    maxexp: 10,
+    maxExp: 10,
+  });
+  const [finalStats, setFinalStats] = useState({
+    attack: 0,
+    defense: 0,
+    hp: 0,
+    critical: 0,
   });
   const [monsterState, setMonsterState] = useState<{
     name: string;
@@ -34,76 +38,75 @@ export default function Adventure() {
     defense: number;
     hp: number;
     critical: number;
-    exp : number;
+    exp: number;
   } | null>(null);
-
   const [monsterHp, setMonsterHp] = useState<number | null>(null);
-  const [hpColor, setHpColor] = useState<string>("white");
-  const [PhpColor, setPhpColor] = useState<string>("white");
-  const [expColor, setExpColor] = useState<string>("white");
+  const [log, setLog] = useState<string[]>(["어두운 눈앞이 밝아지고 끝없이 이어진 길을 따라갔다."]);
+  const [colors, setColors] = useState({
+    hpColor: "white",
+    playerHpColor: "white",
+    expColor: "white",
+  });
 
-
-  const [log, setLog] = useState<string[]>([
-    "어두운 눈앞이 밝아지고 끝없이 이어진 길을 따라갔다.",
-  ]);
-  const [hasFetchedPlayer, setHasFetchedPlayer] = useState(false);
-  const router = useRouter();
-
-  // 1) 로컬스토리지에서 name, level 불러오기
+  // 1) 로컬스토리지에서 플레이어 이름 불러오기
   useEffect(() => {
     const storedName = localStorage.getItem("name");
-    if (storedName) setPlayername(storedName);
+    if (storedName) setPlayerName(storedName);
   }, []);
 
+  useEffect(() => {
+   if(turn === "monster"){
+    handleMonsterTurn();
+   }
+  }, [turn]);
+
+  // 2) 로그 스크롤 자동 업데이트
   useEffect(() => {
     if (logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [log]);
 
-  // 2) playername이 세팅된 이후에만 플레이어 기본 스탯 fetch
+  // 3) 플레이어 스탯 불러오기
   useEffect(() => {
-    if (!playername || hasFetchedPlayer) return;
-
+    if (!playerName) return;
+  
     const fetchPlayerStats = async () => {
       const { data, error } = await supabase
         .from("player")
-        .select("level,attack, defense, hp, critical, exp, maxexp")
-        .eq("playername", playername); // 실제 컬럼명 확인!
-
+        .select("level, attack, defense, hp, critical, exp, maxexp")
+        .eq("playername", playerName);
+  
       if (error) {
         console.error("플레이어 fetch 에러:", error);
       } else if (data && data.length > 0) {
-        // 첫 번째 레코드만 사용
         const entry = data[0];
+  
+        // Supabase에서 가져온 데이터의 속성 이름을 상태에 맞게 변환
         setPlayerStats({
-          level : entry.level,
+          level: entry.level,
           attack: entry.attack,
           defense: entry.defense,
           hp: entry.hp,
           critical: entry.critical,
           exp: entry.exp,
-          maxexp: entry.maxexp,
+          maxExp: entry.maxexp, // 여기서 maxexp를 maxExp로 변환
         });
-        console.log("플레이어 스탯:", entry);
+  
+        calculateFinalStats(entry); // 장비 스탯 계산
+        advanceAdventure(); // 모험 시작
       } else {
         console.warn("플레이어 데이터가 없습니다:", data);
       }
-
-      setHasFetchedPlayer(true);
-      // 이후 모험 로직 시작
-      advanceAdventure();
     };
-
+  
     fetchPlayerStats();
-  }, [playername, hasFetchedPlayer,playerStats]);
+  }, [playerName]);
+  
 
-  // 3) 장비 스탯 합산 & 몬스터 마주치기
-  const advanceAdventure = async () => {
-    if (!playername) return;
-
-    // 장비 스탯 불러오기
-    const { data: equipData, error: equipError } = await supabase
+  // 4) 장비 스탯 합산
+  const calculateFinalStats = async (baseStats: any) => {
+    const { data, error } = await supabase
       .from("player_equip")
       .select(`
         equipment:equipment_name (
@@ -113,13 +116,13 @@ export default function Adventure() {
           critical
         )
       `)
-      .eq("player_name", playername)
+      .eq("player_name", playerName)
       .eq("isequip", true);
 
-    if (equipError) {
-      console.error("장비 fetch 에러:", equipError);
-    } else if (equipData) {
-      const totalEquipStats = equipData.reduce(
+    if (error) {
+      console.error("장비 fetch 에러:", error);
+    } else if (data) {
+      const totalEquipStats = data.reduce(
         (acc: any, row: any) => {
           if (row.equipment) {
             acc.attack += row.equipment.attack || 0;
@@ -129,303 +132,207 @@ export default function Adventure() {
           }
           return acc;
         },
-        { attack: 0, defense: 0, hp: 0, critical: 0 },
-        
+        { attack: 0, defense: 0, hp: 0, critical: 0 }
       );
-      const combinedStats = {
-        attack: totalEquipStats.attack + playerStats.attack,
-        defense: totalEquipStats.defense + playerStats.defense,
-        hp: totalEquipStats.hp + playerStats.hp,
-        critical: totalEquipStats.critical + playerStats.critical,
-      };
-      setMYStats(combinedStats);
-      setStats(totalEquipStats);
-      console.log("장비 스탯 합산:", totalEquipStats);
-    }
 
-    // 몬스터 마주치기
+      setFinalStats({
+        attack: baseStats.attack + totalEquipStats.attack,
+        defense: baseStats.defense + totalEquipStats.defense,
+        hp: baseStats.hp + totalEquipStats.hp,
+        critical: baseStats.critical + totalEquipStats.critical,
+      });
+    }
+  };
+
+  // 5) 몬스터 마주치기
+  const advanceAdventure = async () => {
     try {
-      const { data: monsterData, error: monsterError } = await supabase
+      const { data, error } = await supabase
         .from("monster")
         .select("*")
         .lte("level", playerStats.level + 5);
 
-      if (monsterError) {
-        console.error("몬스터 fetch 에러:", monsterError);
-      } else if (monsterData && monsterData.length > 0) {
-        const m = monsterData[Math.floor(Math.random() * monsterData.length)];
-        setMonsterState(m);
-        setMonsterHp(m.hp)
-        setLog((prev) => [...prev, `${m.name}를(을) 마주했다!`]);
+      if (error) {
+        console.error("몬스터 fetch 에러:", error);
+      } else if (data && data.length > 0) {
+        const monster = data[Math.floor(Math.random() * data.length)];
+        setLog((prev) => [...prev, `${monster.name}를(을) 마주했다!`]);
+        setMonsterState(monster);
+        setMonsterHp(monster.hp);
       }
     } catch (e) {
       console.error("몬스터 마주치기 예외:", e);
     }
 
     setLog((prev) => [...prev, "어떻게할까?"]);
+    setTurn("player");
   };
 
-  function backhome() {
-    router.push("/lobby");
-  }
-
-  // 4) 장비 획득 함수
-  async function gaka() {
-    if (!playername) {
-      setLog((prev) => [...prev, "플레이어 이름이 없습니다."]);
-      return;
-    }
-
-    const randId = Math.floor(Math.random() * 94) + 7; // 7~100 중 랜덤
-    try {
-      const { data: eq, error: eqErr } = await supabase
-        .from("equipment")
-        .select("id, name")
-        .eq("id", randId);
-
-      if (eqErr || !eq || eq.length === 0) {
-        setLog((prev) => [...prev, "장비를 찾지 못했습니다."]);
-        return;
-      }
-
-      const { id: equipId, name: equipName } = eq[0];
-      const { error: insertErr } = await supabase.from("player_equip").insert([
-        {
-          player_name: playername,
-          equipment_name: equipName,
-          isequip: false,
-          // valueid 자동 생성 설정이 되어 있다면 생략 가능
-          // 그렇지 않다면 UUID를 직접 넣어주세요
-        },
-      ]);
-
-      if (insertErr) {
-        setLog((prev) => [...prev, "장비 삽입 실패"]);
+  // 6) 체력 감소 애니메이션
+  const animateHpChange = async (
+    currentHp: number,
+    damage: number,
+    isPlayer: boolean
+  ): Promise<number> => {
+    let newHp = currentHp;
+    for (let i = 0; i < damage; i++) {
+      newHp = Math.max(newHp - 1, 0);
+      if (isPlayer) {
+        setColors((prev) => ({ ...prev, playerHpColor: "red" }));
+        setPlayerStats((prev) => ({ ...prev, hp: newHp }));
       } else {
-        setLog((prev) => [...prev, `${equipName} 획득 성공!`]);
-        advanceAdventure();
+        setColors((prev) => ({ ...prev, hpColor: "red" }));
+        setMonsterHp(newHp);
       }
-    } catch (e) {
-      console.error("gaka 예외 발생:", e);
-      setLog((prev) => [...prev, "모험 중 오류 발생"]);
+      await new Promise((res) => setTimeout(res, 50));
     }
-  }
+    setColors((prev) => ({
+      ...prev,
+      hpColor: "white",
+      playerHpColor: "white",
+    }));
+    return newHp;
+  };
 
-  async function animateHpDecrease(damage: number): Promise<number> {
-    let finalHp = Math.max((monsterHp ?? 0) - damage, 0);
-    setMonsterHp(finalHp);
-    for (let i = 0; i < damage; i++) {
-      if(finalHp == 0 ){
-        break;
-      }
-      finalHp = Math.max(finalHp - 1, 0);
-      setMonsterHp(finalHp);
-      setHpColor("red");
-      await new Promise(res => setTimeout(res,50));
-    }
-    
-    setHpColor("white");
-    return finalHp;
-  }
-
-  
-
-  async function PlayeranimateHpDecrease(damage: number): Promise<number> {
-    let finalHp = playerStats.hp + stats.hp ?? 0;
-    for (let i = 0; i < damage; i++) {
-      if(finalHp == 0 ){
-        break;
-      }
-      finalHp = Math.max(finalHp - 1, 0);
-      setPlayerStats(prev => ({
-        ...prev,
-        hp: finalHp,
-      }));
-      setPhpColor("red");
-      await new Promise(res => setTimeout(res, 50));
-    }
-    setPhpColor("white");
-    return finalHp;
-  }
-
-  async function animateExpIncrease(current: number, target: number) {
-    for (let i = current + 1; i <= target; i++) {
-      setPlayerStats(prev => ({ ...prev, exp: i }));
-      setExpColor("yellow");
-      await new Promise(res => setTimeout(res, 100));
-    }
-    setExpColor("white");
-  }
-
-  async function levelup(getexp: number) {
-    let newExp = playerStats.exp + getexp;
+  // 7) 경험치 증가 애니메이션 및 레벨업
+  const animateExpIncrease = async (expGain: number) => {
+    let newExp = playerStats.exp + expGain;
     let newLevel = playerStats.level;
     let remainingExp = newExp;
-    let newMaxExp = playerStats.maxexp;
-    let newAttack = playerStats.attack;
-    let newDefense = playerStats.defense;
-    let newHp = playerStats.hp;
-    await animateExpIncrease(playerStats.exp, newExp);
+    let newMaxExp = playerStats.maxExp;
+
     while (remainingExp >= newMaxExp) {
       remainingExp -= newMaxExp;
       newLevel++;
       newMaxExp = Math.floor(newMaxExp * 1.2);
-      newAttack++;
-      newDefense++;
-      newHp++;
     }
-    
-    await supabase
-      .from("player")
-      .update({
-        exp: remainingExp,
-        maxexp: newMaxExp,
-        level: newLevel,
-        attack: newAttack,
-        defense: newDefense,
-        hp: newHp,
-      })
-      .eq("playername", playername);
 
-    setPlayerStats(prev => ({
+    setPlayerStats((prev) => ({
       ...prev,
       exp: remainingExp,
-      maxexp: newMaxExp,
-      attack: newAttack,
-      defense: newDefense,
-      hp: newHp,
-      level : newLevel}));
+      maxExp: newMaxExp,
+      level: newLevel,
+    }));
+  };
 
-  }
-  async function monsterAction(){
-    setmd(false);
-    let pd = 0;
-    const action = Math.random() * 101;
-    if (!monsterState || monsterHp === null) return;
-    if(playerdefense){
-      pd =  playerStats.defense + MYstats.defense * 2;
+  // 8) 공격 처리
+  // 플레이어 공격 처리
+const handleAttack = async () => {
+  if (!monsterState || monsterHp === null) return;
+  const { damageDealt, wasCritical } = calculateDamage(finalStats, monsterState);
+  const newHp = await animateHpChange(monsterHp, damageDealt, false);
 
-    }
-    else{
-      pd = playerStats.defense + MYstats.defense;
-    }
+  setLog((prev) => [
+    ...prev,
+    `플레이어 → ${monsterState.name} 공격! 데미지: ${damageDealt}${
+      wasCritical ? " (크리티컬!)" : ""
+    }`,
+  ]);
 
-    const monsterStats: Stats = {
-      attack: monsterState.attack,
-      defense: monsterState.defense,
-      critical: monsterState.critical,
-    };
-    const PlayerStats: Stats = {
-      attack: playerStats.attack + MYstats.attack,
-      defense: pd,
-      critical: playerStats.critical + MYstats.critical
-    };
-
-    
-    
-    const { damageDealt, wasCritical } = calculateDamage(monsterStats, PlayerStats);
-
-    if(action <= 40){
-      setLog(prev => [...prev, `${monsterState.name}은 견고하게 자세를 취했다. 방어력X2`]);
-      setmd(!monserdefense);
-    }
-    else if(action > 40){
-      setLog(prev => [...prev, `${monsterState.name}은 공격을 하기 위해 준비하고있다!`]);
-      setLog(prev => [...prev, `${monsterState.name} → ${playername} 공격! 데미지 : ${damageDealt}${wasCritical ? " (크리티컬!)" : ""}`]);
-      const playerHp = await PlayeranimateHpDecrease(damageDealt);
-
-      const { data: eq, error: eqErr } = await supabase
-        .from("player")
-        .update({ hp: playerHp })
-        .eq("playername", playername);
-
-      if(playerHp == 0){
-
-      }
-
-    }
-
-    setTimeout(() => setturn("player"), 50);
-    console.log(turn)
-  }
-
-  async function handleAttack() {
-    setpd(false);
-    let md = 0;
-    console.log(turn)
-    setturn("monster");
-    if (!monsterState || monsterHp === null) return;
-    if(monserdefense){
-      md =  monsterState.defense * 2;
-      
-    }
-    else{
-      md = monsterState.defense;
-    }
-    const monsterStats: Stats = {
-      
-      attack: monsterState.attack,
-      defense: md,
-      critical: monsterState.critical,
-    };
-    const PlayerStats: Stats = {
-      attack: playerStats.attack + MYstats.attack,
-      defense: playerStats.defense + MYstats.defense,
-      critical: playerStats.critical + MYstats.critical
-    };
-  
-    const { damageDealt, wasCritical } = calculateDamage(PlayerStats, monsterStats);
-  
-    const finalHp = await animateHpDecrease(damageDealt);
-  
-    setLog(prev => [
+  if (newHp <= 0) {
+    setLog((prev) => [
       ...prev,
-      `플레이어 → ${monsterState.name} 공격! 데미지: ${damageDealt}${wasCritical ? " (크리티컬!)" : ""}`,
+      `${monsterState.name}를 물리쳤다! 경험치 ${monsterState.exp} 획득!`,
     ]);
-  ` `
-    if (finalHp <= 0) {
-      setLog(prev => [...prev, `${monsterState.name}를 물리쳤다! exp ${monsterState.exp}를 획득했다.`]);
-      if (monsterState.exp) {
-        await levelup(monsterState.exp);
-      }
-      gaka();
-  
-    }
-    setTimeout(() => monsterAction(), 50);
+    await animateExpIncrease(monsterState.exp);
+    setMonsterState(null);
+    advanceAdventure();
+  } else {
+    setTurn("monster"); // 몬스터 턴으로 전환
+   // 몬스터 턴 실행
   }
+};
 
-  async function handleDefense() {
-    setLog(prev => [...prev, `${playername}은 견고하게 자세를 취했다. 방어력X2`]);
-    setmd(!playerdefense);
-    setTimeout(() => monsterAction(), 50);
+// 플레이어 방어 처리
+const handleDefense = () => {
+  setLog((prev) => [...prev, `${playerName}은 방어를 선택했다! 방어력 증가!`]);
+  setFinalStats((prev) => ({
+    ...prev,
+    defense: prev.defense + 5, // 방어력 증가
+  }));
+  setTurn("monster"); // 몬스터 턴으로 전환
+ // 몬스터 턴 실행
+};
+
+// 플레이어 도망 처리
+const handleRun = () => {
+  const success = Math.random() > 0.3;
+  if (success) {
+    setLog((prev) => [...prev, `${playerName}은 도망에 성공했다!`]);
+    advanceAdventure();
+  } else {
+    setLog((prev) => [...prev, `${playerName}은 도망에 실패했다!`]);
+    setTurn("monster"); // 몬스터 턴으로 전환
+ // 몬스터 턴 실행
   }
+};
+
+
+  // 몬스터 턴 처리 함수 추가
+const handleMonsterTurn = async () => {
+  if (!monsterState || !finalStats.hp) return;
+
+  const monsterAction = Math.random() > 0.5 ? "attack" : "defense"; // 랜덤 행동 결정
+
+  if (monsterAction === "attack") {
+    const { damageDealt, wasCritical } = calculateDamage(monsterState, finalStats); // 몬스터의 데미지 계산
+    const newHp = await animateHpChange(finalStats.hp, damageDealt, true); // 플레이어 체력 감소
+
+    setLog((prev) => [
+      ...prev,
+      `${monsterState.name} → 플레이어 공격! 데미지: ${damageDealt}${
+        wasCritical ? " (크리티컬!)" : ""
+      }`,
+    ]);
+
+    if (newHp <= 0) {
+      setLog((prev) => [...prev, `${playerName}은 쓰러졌다...`]);
+      router.push("/gameover"); // 게임 종료 처리
+    } else {
+      setTurn("player"); // 플레이어 턴으로 전환
+    }
+  } else if (monsterAction === "defense") {
+    setLog((prev) => [
+      ...prev,
+      `${monsterState.name}은 방어를 선택했다! 방어력이 증가합니다.`,
+    ]);
+    setMonsterState((prev) => ({
+      ...prev!,
+      defense: prev!.defense + 5, // 방어력 증가
+    }));
+    setTurn("player"); // 플레이어 턴으로 전환
+  }
+};
+
 
   return (
     <div className="flex items-center justify-center">
       <div className="h-[100vh] w-[90vh] bg-black flex flex-col items-center">
         <p
           className="text-white text-[1.8vh] self-start m-6 cursor-pointer transition-all duration-300  hover:text-[2vh]"
-          onClick={backhome}
+          onClick={() => router.push("/lobby")}
         >
           돌아가기
         </p>
-
         {/* 플레이어 & 몬스터 스탯 박스 */}
         <div className="flex flex-col gap-6">
+          {/* 플레이어 스탯 */}
           <div className="border-2 border-gray-600 w-[50vh] h-[14vh] p-4 rounded-lg flex flex-col justify-center">
-            <p className="text-white text-xl">{playername}</p>
+            <p className="text-white text-xl">{playerName}</p>
             <div className="text-white flex space-x-4">
               <p>레벨: {playerStats.level}</p>
-              <p>공격력: {stats.attack + playerStats.attack}</p>
-              <p>방어력: {stats.defense + playerStats.defense}</p>
-              <p style={{color : PhpColor}}>체력: {stats.hp + playerStats.hp}</p>
-              <p>치명타: {stats.critical + playerStats.critical}%</p>
+              <p>공격력: {finalStats.attack}</p>
+              <p>방어력: {finalStats.defense}</p>
+              <p style={{ color: colors.playerHpColor }}>체력: {finalStats.hp}</p>
+              <p>치명타: {finalStats.critical}%</p>
             </div>
             <div className="text-white">
-              <p style={{color : expColor}}>exp:{playerStats.exp} / {playerStats.maxexp} </p>
+              <p style={{ color: colors.expColor }}>
+                경험치: {playerStats.exp} / {playerStats.maxExp}
+              </p>
             </div>
           </div>
-
+          {/* 몬스터 스탯 */}
           <div className="border-2 border-gray-600 w-[50vh] h-[10vh] p-4 rounded-lg flex flex-col justify-center">
             <p className="text-white text-xl">
               {monsterState ? monsterState.name : "훈련용 허수아비"}
@@ -434,26 +341,46 @@ export default function Adventure() {
               <p>레벨: {monsterState?.level ?? 1}</p>
               <p>공격력: {monsterState?.attack ?? 1}</p>
               <p>방어력: {monsterState?.defense ?? 1}</p>
-              <p style={{ color: hpColor }}>체력: {monsterHp ?? "-"}</p>
+              <p style={{ color: colors.hpColor }}>체력: {monsterHp ?? "-"}</p>
               <p>치명타: {monsterState?.critical ?? 1}%</p>
             </div>
           </div>
         </div>
-
         {/* 로그 박스 */}
-        <div className="mt-10 text-white text-base h-[30vh] overflow-y-auto w-[70vh] bg-gray-900 p-4 rounded-2xl" ref={logRef}>
+        <div
+          className="mt-10 text-white text-base h-[30vh] overflow-y-auto w-[70vh] bg-gray-900 p-4 rounded-2xl"
+          ref={logRef}
+        >
           {log.map((entry, i) => (
             <p key={i}>• {entry}</p>
           ))}
         </div>
-
-        {turn == "player" ? <div className="flex flex-row gap-[1vh] mt-[3vh]">
-          <div className="border-[2px] border-[#FFFFFF] text-[#FFFFFF] w-[20vh] h-[5vh] rounded-[1vh] flex text-center items-center justify-center text-[2vh] gap-[2vh] transition-all duration-300 hover:w-[23vh]  cursor-pointer" onClick={()=> {handleAttack()}}><Image src={attack} alt="공격" width={20} height={20}/>공격</div>
-          <div className="border-[2px] border-[#FFFFFF] text-[#FFFFFF] w-[20vh] h-[5vh] rounded-[1vh] flex text-center items-center justify-center text-[2vh] gap-[2vh] transition-all duration-300 hover:w-[23vh] cursor-pointer" onClick={()=> {handleDefense()}}><Image src={defense} alt="공격" width={16} height={16}/>방어</div>
-          <div className="border-[2px] border-[#FFFFFF] text-[#FFFFFF] w-[20vh] h-[5vh] rounded-[1vh] flex text-center items-center justify-center text-[2vh] gap-[2vh] transition-all duration-300 hover:w-[23vh] cursor-pointer"><Image src={run} alt="공격" width={18} height={18}/>도망</div>
-        </div> : <></> }
-        
-        </div>
+        {turn === "player" && (
+          <div className="flex flex-row gap-[1vh] mt-[3vh]">
+            <div
+              className="border-[2px] border-[#FFFFFF] text-[#FFFFFF] w-[20vh] h-[5vh] rounded-[1vh] flex text-center items-center justify-center text-[2vh] gap-[2vh] transition-all duration-300 hover:w-[23vh] cursor-pointer"
+              onClick={handleAttack}
+            >
+              <Image src={attack} alt="공격" width={20} height={20} />
+              공격
+            </div>
+            <div
+              className="border-[2px] border-[#FFFFFF] text-[#FFFFFF] w-[20vh] h-[5vh] rounded-[1vh] flex text-center items-center justify-center text-[2vh] gap-[2vh] transition-all duration-300 hover:w-[23vh] cursor-pointer"
+              onClick={handleDefense}
+            >
+              <Image src={defense} alt="방어" width={16} height={16} />
+              방어
+            </div>
+            <div
+              className="border-[2px] border-[#FFFFFF] text-[#FFFFFF] w-[20vh] h-[5vh] rounded-[1vh] flex text-center items-center justify-center text-[2vh] gap-[2vh] transition-all duration-300 hover:w-[23vh] cursor-pointer"
+              onClick={handleRun}
+            >
+              <Image src={run} alt="도망" width={18} height={18} />
+              도망
+            </div>
+          </div>
+        )}
       </div>
+    </div>
   );
 }

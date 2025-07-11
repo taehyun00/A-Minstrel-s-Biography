@@ -60,7 +60,7 @@ export default function Fild() {
         <div className="text-center">
         <p className="text-[#FFFFFF] text-[2vh] relative top-[-20vh] ">당신</p>
         <p className="text-[#FFFFFF] text-[2vh] relative top-[-20vh] ">이름 : {name}</p>
-        <p className="text-[#FFFFFF] text-[2vh] relative top-[-20vh] ">레벨 : {level}</p>
+        <p className="text-[#FFFFFF] text-[2vh] relative top-[-20vh] ">레벨 : {level}.lv</p>
         </div>
         <br  className="border-b-[2px] border-[#FFFFFF]"/>
         <div className="text-center">

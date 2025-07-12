@@ -21,7 +21,7 @@ export default function Home() {
   }
   return (
     <div className="flex items-center justify-center">
-      <div className="h-[100vh] w-[80vh] bg-[#000000] flex justify-center items-center flex-col ">
+      <div className="h-[100vh] w-[90vh] bg-[#000000] flex justify-center items-center flex-col ">
         <p className="text-[#FFFFFF] text-[8vh] ">모험가 이야기</p>
 
         <button className="text-[#FFFFFF] text-[5vh] transition-all duration-300 hover:text-[6vh]" onClick={() => Fild()}>이어서 하기</button>

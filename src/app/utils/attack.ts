@@ -20,7 +20,7 @@ export interface Stats {
     defender: Stats
   ): CombatResult {
     // 1) 기본 데미지 = 공격력 - 방어력 * 0.5
-    var base = Math.max(attacker.attack - defender.defense*0.5, 1);
+    var base = Math.max(attacker.attack - defender.defense*0.7, 1);
     console.log("데미지" + base)
   
     // 2) 크리티컬 판정
@@ -28,7 +28,7 @@ export interface Stats {
     const isCrit = roll < attacker.critical;
   
     // 3) 크리티컬 시 데미지 1.5배
-    const damage = isCrit ? Math.floor(base * 1.5) : Math.floor(base);
+    const damage = isCrit ? Math.floor(base * 1.2) : Math.floor(base);
   
     return { damageDealt: damage, wasCritical: isCrit };
   }

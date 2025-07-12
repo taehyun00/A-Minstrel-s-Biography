@@ -16,6 +16,9 @@ export default function Adventure() {
   // 상태 관리
   const [playerName, setPlayerName] = useState<string | null>(null);
   const [turn, setTurn] = useState<"player" | "monster">("player");
+
+  const [pd,setpd] = useState(false);
+  const [md,setmd] = useState(false);
   const [playerStats, setPlayerStats] = useState({
     level: 0,
     attack: 0,
@@ -59,6 +62,26 @@ export default function Adventure() {
     handleMonsterTurn();
    }
   }, [turn]);
+
+  useEffect(() => {
+    if (monsterState) {
+      setMonsterHp(monsterState.hp ?? 1); // 몬스터 체력 기본값 설정
+    }
+  }, [monsterState]);
+  
+  useEffect(() => {
+    if (finalStats.hp === null || finalStats.hp === undefined) {
+      setFinalStats((prev) => ({ ...prev, hp: playerStats.hp ?? 0 })); // 플레이어 체력 기본값 설정
+    }
+  }, [playerStats]);
+  
+
+  function playerHP(e: number) {
+    setFinalStats((prev) => ({
+      ...prev,
+      hp: e,
+    }));
+  }
 
   // 2) 로그 스크롤 자동 업데이트
   useEffect(() => {
@@ -106,43 +129,62 @@ export default function Adventure() {
 
   // 4) 장비 스탯 합산
   const calculateFinalStats = async (baseStats: any) => {
-    const { data, error } = await supabase
-      .from("player_equip")
-      .select(`
-        equipment:equipment_name (
-          attack,
-          defense,
-          hp,
-          critical
-        )
-      `)
-      .eq("player_name", playerName)
-      .eq("isequip", true);
-
-    if (error) {
-      console.error("장비 fetch 에러:", error);
-    } else if (data) {
-      const totalEquipStats = data.reduce(
+    // 기본 스탯 검증
+    const validBaseStats = {
+      attack: baseStats.attack ?? 0,
+      defense: baseStats.defense ?? 0,
+      hp: baseStats.hp ?? 0,
+      critical: baseStats.critical ?? 0,
+    };
+  
+    try {
+      const { data, error } = await supabase
+        .from("player_equip")
+        .select(`
+          equipment:equipment_name (
+            attack,
+            defense,
+            hp,
+            critical
+          )
+        `)
+        .eq("player_name", playerName)
+        .eq("isequip", true);
+  
+      if (error) {
+        console.error("장비 fetch 에러:", error);
+        return; // 에러 발생 시 함수 종료
+      }
+  
+      // 장비 데이터가 없을 경우 기본값 설정
+      const totalEquipStats = (data ?? []).reduce(
         (acc: any, row: any) => {
           if (row.equipment) {
-            acc.attack += row.equipment.attack || 0;
-            acc.defense += row.equipment.defense || 0;
-            acc.hp += row.equipment.hp || 0;
-            acc.critical += row.equipment.critical || 0;
+            acc.attack += row.equipment.attack ?? 0;
+            acc.defense += row.equipment.defense ?? 0;
+            acc.hp += row.equipment.hp ?? 0;
+            acc.critical += row.equipment.critical ?? 0;
           }
           return acc;
         },
-        { attack: 0, defense: 0, hp: 0, critical: 0 }
+        { attack: 0, defense: 0, hp: 0, critical: 0 } // 기본값
       );
-
-      setFinalStats({
-        attack: baseStats.attack + totalEquipStats.attack,
-        defense: baseStats.defense + totalEquipStats.defense,
-        hp: baseStats.hp + totalEquipStats.hp,
-        critical: baseStats.critical + totalEquipStats.critical,
-      });
+  
+      // 최종 스탯 계산
+      const finalStats = {
+        attack: validBaseStats.attack + totalEquipStats.attack,
+        defense: validBaseStats.defense + totalEquipStats.defense,
+        hp: validBaseStats.hp + totalEquipStats.hp,
+        critical: validBaseStats.critical + totalEquipStats.critical,
+      };
+  
+      // 상태 업데이트
+      setFinalStats(finalStats);
+    } catch (e) {
+      console.error("장비 스탯 계산 예외:", e);
     }
   };
+  
 
   // 5) 몬스터 마주치기
   const advanceAdventure = async () => {
@@ -174,25 +216,54 @@ export default function Adventure() {
     damage: number,
     isPlayer: boolean
   ): Promise<number> => {
-    let newHp = currentHp;
+    let newHp = isNaN(currentHp) ? 0 : currentHp; // NaN 방지
+  
     for (let i = 0; i < damage; i++) {
       newHp = Math.max(newHp - 1, 0);
       if (isPlayer) {
-        setColors((prev) => ({ ...prev, playerHpColor: "red" }));
+        if(newHp == 0){
+          setLog((prev) => [...prev, `${playerName}은 쓰러졌다...`]);
+          setTimeout(() => {
+            
+          }, 100);
+        router.push("/lobby"); 
+        } // 체력 감소, 최소값은 0
+        
         setPlayerStats((prev) => ({ ...prev, hp: newHp }));
+        setColors((prev) => ({ ...prev, playerHpColor: "red" }));
+        playerHP(newHp);
+
+
       } else {
+        setMonsterHp(newHp); // 몬스터 체력 업데이트
         setColors((prev) => ({ ...prev, hpColor: "red" }));
-        setMonsterHp(newHp);
       }
-      await new Promise((res) => setTimeout(res, 50));
+      await new Promise((res) => setTimeout(res, 50)); // 애니메이션 딜레이
     }
+
+  
+    // 색상 초기화
     setColors((prev) => ({
       ...prev,
       hpColor: "white",
       playerHpColor: "white",
     }));
+  
+    if (isPlayer) {
+      const { data, error } = await supabase
+        .from("player")
+        .update({ hp: (newHp - ( finalStats.hp- (10+playerStats.level) )) })
+        .eq("playername", playerName);
+  
+      if (error) {
+        console.error("플레이어 체력 업데이트 에러:", error);
+      }
+    }
+  
     return newHp;
   };
+  
+  
 
   // 7) 경험치 증가 애니메이션 및 레벨업
   const animateExpIncrease = async (expGain: number) => {
@@ -200,24 +271,43 @@ export default function Adventure() {
     let newLevel = playerStats.level;
     let remainingExp = newExp;
     let newMaxExp = playerStats.maxExp;
-
+  
     while (remainingExp >= newMaxExp) {
+      setColors((prev) => ({
+        ...prev,
+        expColor : "yellow"
+      })); // 경험치 색상을 레벨 업 중으로 변경
       remainingExp -= newMaxExp;
       newLevel++;
-      newMaxExp = Math.floor(newMaxExp * 1.2);
+      newMaxExp = Math.floor(newMaxExp * 1.2); // 레벨 업 시 maxExp 증가
     }
-
+    setColors((prev) => ({
+      ...prev,
+      expColor : "white "
+    }));  // 경험치 색상을 원래대로 복구
+  
     setPlayerStats((prev) => ({
       ...prev,
       exp: remainingExp,
       maxExp: newMaxExp,
       level: newLevel,
     }));
+  
+    try {
+      const { data, error } = await supabase
+        .from("player")
+        .update({ level: newLevel, maxexp: newMaxExp, exp: remainingExp })
+        .eq("playername", playerName);
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      alert("예상치 못한 오류가 발생했습니다.");
+    }
   };
 
   // 8) 공격 처리
   // 플레이어 공격 처리
 const handleAttack = async () => {
+  setpd(false);
   if (!monsterState || monsterHp === null) return;
   const { damageDealt, wasCritical } = calculateDamage(finalStats, monsterState);
   const newHp = await animateHpChange(monsterHp, damageDealt, false);
@@ -228,6 +318,10 @@ const handleAttack = async () => {
       wasCritical ? " (크리티컬!)" : ""
     }`,
   ]);
+  setMonsterState((prev) => ({
+    ...prev!,
+    hp : newHp, // 방어력 증가
+  }));
 
   if (newHp <= 0) {
     setLog((prev) => [
@@ -245,17 +339,20 @@ const handleAttack = async () => {
 
 // 플레이어 방어 처리
 const handleDefense = () => {
+  setpd(false);
   setLog((prev) => [...prev, `${playerName}은 방어를 선택했다! 방어력 증가!`]);
   setFinalStats((prev) => ({
     ...prev,
     defense: prev.defense + 5, // 방어력 증가
   }));
-  setTurn("monster"); // 몬스터 턴으로 전환
+  setTurn("monster");
+  setpd(true);
  // 몬스터 턴 실행
 };
 
 // 플레이어 도망 처리
 const handleRun = () => {
+  setpd(false);
   const success = Math.random() > 0.3;
   if (success) {
     setLog((prev) => [...prev, `${playerName}은 도망에 성공했다!`]);
@@ -270,12 +367,14 @@ const handleRun = () => {
 
   // 몬스터 턴 처리 함수 추가
 const handleMonsterTurn = async () => {
+  setmd(false);
   if (!monsterState || !finalStats.hp) return;
 
   const monsterAction = Math.random() > 0.5 ? "attack" : "defense"; // 랜덤 행동 결정
 
   if (monsterAction === "attack") {
     const { damageDealt, wasCritical } = calculateDamage(monsterState, finalStats); // 몬스터의 데미지 계산
+    console.log(damageDealt)
     const newHp = await animateHpChange(finalStats.hp, damageDealt, true); // 플레이어 체력 감소
 
     setLog((prev) => [
@@ -285,10 +384,7 @@ const handleMonsterTurn = async () => {
       }`,
     ]);
 
-    if (newHp <= 0) {
-      setLog((prev) => [...prev, `${playerName}은 쓰러졌다...`]);
-      router.push("/gameover"); // 게임 종료 처리
-    } else {
+    if(newHp>=0){
       setTurn("player"); // 플레이어 턴으로 전환
     }
   } else if (monsterAction === "defense") {
@@ -300,9 +396,29 @@ const handleMonsterTurn = async () => {
       ...prev!,
       defense: prev!.defense + 5, // 방어력 증가
     }));
-    setTurn("player"); // 플레이어 턴으로 전환
+    setTurn("player");// 플레이어 턴으로 전환
+    setmd(true); 
   }
 };
+
+useEffect(() => {
+  if (md === false) {
+    // monsterState가 null인지 확인 후 상태 업데이트
+    setMonsterState((prev) => {
+      if (!prev) return null; // prev가 null인 경우 방어 코드 추가
+      return {
+        ...prev,
+        defense: Math.max(prev.defense - 5, 0), // 방어력 감소, 최소값은 0
+      };
+    });
+
+    // finalStats 상태 업데이트
+    setFinalStats((prev) => ({
+      ...prev,
+      defense: Math.max(prev.defense - 5, 0), // 방어력 감소, 최소값은 0
+    }));
+  }
+}, [md, pd]);
 
 
   return (

@@ -19,7 +19,7 @@ export interface Stats {
     attacker: Stats,
     defender: Stats
   ): CombatResult {
-    // 1) 기본 데미지 = 공격력 - 방어력 * 0.5
+    // 1) 기본 데미지 = 공격력 - 방어력 * 0.6
     var base = Math.max(attacker.attack - defender.defense*0.6, 1);
 
   

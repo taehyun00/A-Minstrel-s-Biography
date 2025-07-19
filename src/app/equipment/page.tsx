@@ -254,7 +254,7 @@ export default function EquipmentPage() {
               </div>
             ))
           ) : (
-            <p className="text-white col-span-5">보유 장비가 없습니다.</p>
+            <p className="text-white col-span-5">보유 장비가 없습니다.장비를 획득해보세요!</p>
           )}
         </div>
       </div>

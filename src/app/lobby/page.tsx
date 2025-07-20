@@ -74,7 +74,7 @@ export default function Fild() {
       <div className="relative top-[-20vh] flex flex-row gap-[5vh]">
         <p className="text-[#FFFFFF] text-[1.7vh] transition-all duration-300  hover:text-[2vh]" onClick={() => Adv()}>모험</p>
         <p className="text-[#FFFFFF] text-[1.7vh] transition-all duration-300  hover:text-[2vh]" onClick={() => Eq()}>장비</p>
-        <p className="text-[#FFFFFF] text-[1.7vh] transition-all duration-300  hover:text-[2vh]" onClick={() => Tl()}>시련</p>
+        <p className="text-[#FFFFFF] text-[1.7vh] transition-all duration-300  hover:text-[2vh]" onClick={() => Tl()}>강화</p>
 
       </div>
     </div>

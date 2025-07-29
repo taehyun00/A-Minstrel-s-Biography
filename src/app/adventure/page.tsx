@@ -17,8 +17,8 @@ export default function Adventure() {
   const [playerName, setPlayerName] = useState<string | null>(null);
   const [turn, setTurn] = useState<"player" | "monster">("player");
 
-  const [pd,setpd] = useState(false);
-  const [md,setmd] = useState(false);
+  const [pd, setpd] = useState(false);
+  const [md, setmd] = useState(false);
   const [playerStats, setPlayerStats] = useState({
     level: 0,
     attack: 0,
@@ -58,9 +58,9 @@ export default function Adventure() {
   }, []);
 
   useEffect(() => {
-   if(turn === "monster"){
-    handleMonsterTurn();
-   }
+    if (turn === "monster") {
+      handleMonsterTurn();
+    }
   }, [turn]);
 
   useEffect(() => {
@@ -68,13 +68,13 @@ export default function Adventure() {
       setMonsterHp(monsterState.hp ?? 1); // 몬스터 체력 기본값 설정
     }
   }, [monsterState]);
-  
+
   useEffect(() => {
     if (finalStats.hp === null || finalStats.hp === undefined) {
       setFinalStats((prev) => ({ ...prev, hp: playerStats.hp ?? 0 })); // 플레이어 체력 기본값 설정
     }
   }, [playerStats]);
-  
+
 
   function playerHP(e: number) {
     setFinalStats((prev) => ({
@@ -93,18 +93,18 @@ export default function Adventure() {
   // 3) 플레이어 스탯 불러오기
   useEffect(() => {
     if (!playerName) return;
-  
+
     const fetchPlayerStats = async () => {
       const { data, error } = await supabase
         .from("player")
         .select("level, attack, defense, hp, critical, exp, maxexp")
         .eq("playername", playerName);
-  
+
       if (error) {
         console.error("플레이어 fetch 에러:", error);
       } else if (data && data.length > 0) {
         const entry = data[0];
-  
+
         // Supabase에서 가져온 데이터의 속성 이름을 상태에 맞게 변환
         setPlayerStats({
           level: entry.level,
@@ -115,17 +115,17 @@ export default function Adventure() {
           exp: entry.exp,
           maxExp: entry.maxexp, // 여기서 maxexp를 maxExp로 변환
         });
-  
+
         calculateFinalStats(entry); // 장비 스탯 계산
         advanceAdventure(); // 모험 시작
       } else {
         console.warn("플레이어 데이터가 없습니다:", data);
       }
     };
-  
+
     fetchPlayerStats();
   }, [playerName]);
-  
+
 
   // 4) 장비 스탯 합산
   const calculateFinalStats = async (baseStats: any) => {
@@ -136,7 +136,7 @@ export default function Adventure() {
       hp: baseStats.hp ?? 0,
       critical: baseStats.critical ?? 0,
     };
-  
+
     try {
       const { data, error } = await supabase
         .from("player_equip")
@@ -150,12 +150,12 @@ export default function Adventure() {
         `)
         .eq("player_name", playerName)
         .eq("isequip", true);
-  
+
       if (error) {
         console.error("장비 fetch 에러:", error);
         return; // 에러 발생 시 함수 종료
       }
-  
+
       // 장비 데이터가 없을 경우 기본값 설정
       const totalEquipStats = (data ?? []).reduce(
         (acc: any, row: any) => {
@@ -169,7 +169,7 @@ export default function Adventure() {
         },
         { attack: 0, defense: 0, hp: 0, critical: 0 } // 기본값
       );
-  
+
       // 최종 스탯 계산
       const finalStats = {
         attack: validBaseStats.attack + totalEquipStats.attack,
@@ -177,14 +177,14 @@ export default function Adventure() {
         hp: validBaseStats.hp + totalEquipStats.hp,
         critical: validBaseStats.critical + totalEquipStats.critical,
       };
-  
+
       // 상태 업데이트
       setFinalStats(finalStats);
     } catch (e) {
       console.error("장비 스탯 계산 예외:", e);
     }
   };
-  
+
 
   // 5) 몬스터 마주치기
   const advanceAdventure = async () => {
@@ -217,18 +217,18 @@ export default function Adventure() {
     isPlayer: boolean
   ): Promise<number> => {
     let newHp = isNaN(currentHp) ? 0 : currentHp; // NaN 방지
-  
+
     for (let i = 0; i < damage; i++) {
       newHp = Math.max(newHp - 1, 0);
       if (isPlayer) {
-        if(newHp == 0){
+        if (newHp == 0) {
           setLog((prev) => [...prev, `${playerName}은 쓰러졌다...`]);
           setTimeout(() => {
-            
+
           }, 100);
-        router.push("/lobby"); 
+          router.push("/lobby");
         } // 체력 감소, 최소값은 0
-        
+
         setPlayerStats((prev) => ({ ...prev, hp: newHp }));
         setColors((prev) => ({ ...prev, playerHpColor: "red" }));
         playerHP(newHp);
@@ -241,29 +241,29 @@ export default function Adventure() {
       await new Promise((res) => setTimeout(res, 50)); // 애니메이션 딜레이
     }
 
-  
+
     // 색상 초기화
     setColors((prev) => ({
       ...prev,
       hpColor: "white",
       playerHpColor: "white",
     }));
-  
+
     if (isPlayer) {
       const { data, error } = await supabase
         .from("player")
-        .update({ hp: (newHp - ( finalStats.hp- (10+playerStats.level) )) })
+        .update({ hp: (newHp - (finalStats.hp - (10 + playerStats.level))) })
         .eq("playername", playerName);
-  
+
       if (error) {
         console.error("플레이어 체력 업데이트 에러:", error);
       }
     }
-  
+
     return newHp;
   };
-  
-  
+
+
 
   // 7) 경험치 증가 애니메이션 및 레벨업
   const animateExpIncrease = async (expGain: number) => {
@@ -271,11 +271,11 @@ export default function Adventure() {
     let newLevel = playerStats.level;
     let remainingExp = newExp;
     let newMaxExp = playerStats.maxExp;
-  
+
     while (remainingExp >= newMaxExp) {
       setColors((prev) => ({
         ...prev,
-        expColor : "yellow"
+        expColor: "yellow"
       })); // 경험치 색상을 레벨 업 중으로 변경
       remainingExp -= newMaxExp;
       newLevel++;
@@ -283,16 +283,16 @@ export default function Adventure() {
     }
     setColors((prev) => ({
       ...prev,
-      expColor : "white "
+      expColor: "white "
     }));  // 경험치 색상을 원래대로 복구
-  
+
     setPlayerStats((prev) => ({
       ...prev,
       exp: remainingExp,
       maxExp: newMaxExp,
       level: newLevel,
     }));
-  
+
     try {
       const { data, error } = await supabase
         .from("player")
@@ -306,119 +306,117 @@ export default function Adventure() {
 
   // 8) 공격 처리
   // 플레이어 공격 처리
-const handleAttack = async () => {
-  setpd(false);
-  if (!monsterState || monsterHp === null) return;
-  const { damageDealt, wasCritical } = calculateDamage(finalStats, monsterState);
-  const newHp = await animateHpChange(monsterHp, damageDealt, false);
-
-  setLog((prev) => [
-    ...prev,
-    `플레이어 → ${monsterState.name} 공격! 데미지: ${damageDealt}${
-      wasCritical ? " (크리티컬!)" : ""
-    }`,
-  ]);
-  setMonsterState((prev) => ({
-    ...prev!,
-    hp : newHp, // 방어력 증가
-  }));
-
-  if (newHp <= 0) {
-    setLog((prev) => [
-      ...prev,
-      `${monsterState.name}를 물리쳤다! 경험치 ${monsterState.exp} 획득!`,
-    ]);
-    await animateExpIncrease(monsterState.exp);
-    setMonsterState(null);
-    advanceAdventure();
-  } else {
-    setTurn("monster"); // 몬스터 턴으로 전환
-   // 몬스터 턴 실행
-  }
-};
-
-// 플레이어 방어 처리
-const handleDefense = () => {
-  setpd(false);
-  setLog((prev) => [...prev, `${playerName}은 방어를 선택했다! 방어력 증가!`]);
-  setFinalStats((prev) => ({
-    ...prev,
-    defense: prev.defense + 5, // 방어력 증가
-  }));
-  setTurn("monster");
-  setpd(true);
- // 몬스터 턴 실행
-};
-
-// 플레이어 도망 처리
-const handleRun = () => {
-  setpd(false);
-  const success = Math.random() > 0.3;
-  if (success) {
-    setLog((prev) => [...prev, `${playerName}은 도망에 성공했다!`]);
-    advanceAdventure();
-  } else {
-    setLog((prev) => [...prev, `${playerName}은 도망에 실패했다!`]);
-    setTurn("monster"); // 몬스터 턴으로 전환
- // 몬스터 턴 실행
-  }
-};
-
-
-  // 몬스터 턴 처리 함수 추가
-const handleMonsterTurn = async () => {
-  setmd(false);
-  if (!monsterState || !finalStats.hp) return;
-
-  const monsterAction = Math.random() > 0.5 ? "attack" : "defense"; // 랜덤 행동 결정
-
-  if (monsterAction === "attack") {
-    const { damageDealt, wasCritical } = calculateDamage(monsterState, finalStats); // 몬스터의 데미지 계산
-    console.log(damageDealt)
-    const newHp = await animateHpChange(finalStats.hp, damageDealt, true); // 플레이어 체력 감소
+  const handleAttack = async () => {
+    setpd(false);
+    if (!monsterState || monsterHp === null) return;
+    const { damageDealt, wasCritical } = calculateDamage(finalStats, monsterState);
+    const newHp = await animateHpChange(monsterHp, damageDealt, false);
 
     setLog((prev) => [
       ...prev,
-      `${monsterState.name} → 플레이어 공격! 데미지: ${damageDealt}${
-        wasCritical ? " (크리티컬!)" : ""
+      `플레이어 → ${monsterState.name} 공격! 데미지: ${damageDealt}${wasCritical ? " (크리티컬!)" : ""
       }`,
-    ]);
-
-    if(newHp>=0){
-      setTurn("player"); // 플레이어 턴으로 전환
-    }
-  } else if (monsterAction === "defense") {
-    setLog((prev) => [
-      ...prev,
-      `${monsterState.name}은 방어를 선택했다! 방어력이 증가합니다.`,
     ]);
     setMonsterState((prev) => ({
       ...prev!,
-      defense: prev!.defense + 5, // 방어력 증가
+      hp: newHp, // 방어력 증가
     }));
-    setTurn("player");// 플레이어 턴으로 전환
-    setmd(true); 
-  }
-};
 
-useEffect(() => {
-  if (md === false) {
-    // monsterState가 null인지 확인 후 상태 업데이트
-    setMonsterState((prev) => {
-      if (!prev) return null; // prev가 null인 경우 방어 코드 추가
-      return {
+    if (newHp <= 0) {
+      setLog((prev) => [
         ...prev,
-        defense: Math.max(prev.defense - 5, 0), // 방어력 감소, 최소값은 0
-      };
-    });
+        `${monsterState.name}를 물리쳤다! 경험치 ${monsterState.exp} 획득!`,
+      ]);
+      await animateExpIncrease(monsterState.exp);
+      setMonsterState(null);
+      advanceAdventure();
+    } else {
+      setTurn("monster"); // 몬스터 턴으로 전환
+      // 몬스터 턴 실행
+    }
+  };
 
-    // finalStats 상태 업데이트
+  // 플레이어 방어 처리
+  const handleDefense = () => {
+    setpd(false);
+    setLog((prev) => [...prev, `${playerName}은 방어를 선택했다! 방어력 증가!`]);
     setFinalStats((prev) => ({
       ...prev,
-      defense: Math.max(prev.defense - 5, 0), // 방어력 감소, 최소값은 0
+      defense: prev.defense + 5, // 방어력 증가
     }));
-  }
-}, [md, pd]);
+    setTurn("monster");
+    setpd(true);
+    // 몬스터 턴 실행
+  };
+
+  // 플레이어 도망 처리
+  const handleRun = () => {
+    setpd(false);
+    const success = Math.random() > 0.3;
+    if (success) {
+      setLog((prev) => [...prev, `${playerName}은 도망에 성공했다!`]);
+      advanceAdventure();
+    } else {
+      setLog((prev) => [...prev, `${playerName}은 도망에 실패했다!`]);
+      setTurn("monster"); // 몬스터 턴으로 전환
+      // 몬스터 턴 실행
+    }
+  };
+
+
+  // 몬스터 턴 처리 함수 추가
+  const handleMonsterTurn = async () => {
+    setmd(false);
+    if (!monsterState || !finalStats.hp) return;
+
+    const monsterAction = Math.random() > 0.5 ? "attack" : "defense"; // 랜덤 행동 결정
+
+    if (monsterAction === "attack") {
+      const { damageDealt, wasCritical } = calculateDamage(monsterState, finalStats); // 몬스터의 데미지 계산
+      console.log(damageDealt)
+      const newHp = await animateHpChange(finalStats.hp, damageDealt, true); // 플레이어 체력 감소
+
+      setLog((prev) => [
+        ...prev,
+        `${monsterState.name} → 플레이어 공격! 데미지: ${damageDealt}${wasCritical ? " (크리티컬!)" : ""
+        }`,
+      ]);
+
+      if (newHp >= 0) {
+        setTurn("player"); // 플레이어 턴으로 전환
+      }
+    } else if (monsterAction === "defense") {
+      setLog((prev) => [
+        ...prev,
+        `${monsterState.name}은 방어를 선택했다! 방어력이 증가합니다.`,
+      ]);
+      setMonsterState((prev) => ({
+        ...prev!,
+        defense: prev!.defense + 5, // 방어력 증가
+      }));
+      setTurn("player");// 플레이어 턴으로 전환
+      setmd(true);
+    }
+  };
+
+  useEffect(() => {
+    if (md === false) {
+      // monsterState가 null인지 확인 후 상태 업데이트
+      setMonsterState((prev) => {
+        if (!prev) return null; // prev가 null인 경우 방어 코드 추가
+        return {
+          ...prev,
+          defense: Math.max(prev.defense - 5, 0), // 방어력 감소, 최소값은 0
+        };
+      });
+
+      // finalStats 상태 업데이트
+      setFinalStats((prev) => ({
+        ...prev,
+        defense: Math.max(prev.defense - 5, 0), // 방어력 감소, 최소값은 0
+      }));
+    }
+  }, [md, pd]);
 
 
   return (

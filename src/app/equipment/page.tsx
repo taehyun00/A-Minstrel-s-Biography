@@ -63,8 +63,8 @@ function EquipmentDetail({ name }: { name: string }) {
         <p>체력: {detailData.hp}</p>
         <p>치명타: {detailData.critical}%</p>
         <p>설명: {detailData.des}</p>
+      </div>
     </div>
-  </div>
   );
 }
 
@@ -85,12 +85,12 @@ export default function EquipmentPage() {
 
 
 
-  
+
 
   async function fetchEquipments(playerName: string) {
     const { data, error } = await supabase
-  .from("player_equip")
-  .select(`
+      .from("player_equip")
+      .select(`
     id,
     valueid,
     isequip,
@@ -105,7 +105,7 @@ export default function EquipmentPage() {
       grade
     )
   `)
-  .eq("player_name", playerName);
+      .eq("player_name", playerName);
 
 
 
@@ -115,21 +115,21 @@ export default function EquipmentPage() {
     }
 
     const mapped: Equipment[] = (data ?? [])
-    .filter((entry: any) => entry.equipment) // equipment가 존재하는 경우만
-    .map((entry: any) => ({
-      id: entry.id,
-      name: entry.equipment.name,
-      attack: entry.equipment.attack,
-      defense: entry.equipment.defense,
-      hp: entry.equipment.hp,
-      critical: entry.equipment.critical,
-      location: entry.equipment.location,
-      grade: entry.equipment.grade,
-      valueid: entry.valueid, // 여기서 직접 꺼냄 (equipment가 아님!)
-      isequip: entry.isequip
-    }));
+      .filter((entry: any) => entry.equipment) // equipment가 존재하는 경우만
+      .map((entry: any) => ({
+        id: entry.id,
+        name: entry.equipment.name,
+        attack: entry.equipment.attack,
+        defense: entry.equipment.defense,
+        hp: entry.equipment.hp,
+        critical: entry.equipment.critical,
+        location: entry.equipment.location,
+        grade: entry.equipment.grade,
+        valueid: entry.valueid, // 여기서 직접 꺼냄 (equipment가 아님!)
+        isequip: entry.isequip
+      }));
 
-  
+
     setEquipments(mapped);
   }
 
@@ -139,7 +139,7 @@ export default function EquipmentPage() {
       location: string;
     };
   };
-  
+
   async function toggleEquip(equip: Equipment) {
 
     try {
@@ -150,7 +150,7 @@ export default function EquipmentPage() {
           .update({ isequip: false })
           .eq("player_name", name)
           .eq("id", equip.id);
-  
+
         if (uneqErr) {
           console.error("언착용 업데이트 에러:", uneqErr);
           return;
@@ -164,13 +164,13 @@ export default function EquipmentPage() {
           .select("id, equipment:equipment_name (location)")
           .eq("player_name", name)
           .eq("isequip", true);
-  
+
         if (error) throw error;
-  
+
         const toUnequipIds = equippedList
           ?.filter((old) => old.equipment.location === equip.location)
           .map((old) => old.id) ?? [];
-  
+
         if (toUnequipIds.length > 0) {
           await supabase
             .from("player_equip")
@@ -178,14 +178,14 @@ export default function EquipmentPage() {
             .eq("player_name", name)
             .in("id", toUnequipIds);
         }
-  
+
         // 선택한 장비 장착
         await supabase
           .from("player_equip")
           .update({ isequip: true })
           .eq("player_name", name)
           .eq("id", equip.id);
-  
+
         await fetchEquipments(name);
       }
     } catch (err) {
@@ -219,9 +219,9 @@ export default function EquipmentPage() {
           <p>치명타 확률: {equipped.reduce((a, b) => a + b.critical, 5)}%</p>
         </div>
 
-        <hr className="border-[1px] border-[#FFFFFF] w-[100%]  absolute top-[35vh]"/>
+        <hr className="border-[1px] border-[#FFFFFF] w-[100%]  absolute top-[35vh]" />
         <p className="text-white text-[2vh] absolute top-[30vh]">장착 장비</p>
-        
+
         <div className="flex gap-4 justify-center absolute top-[40vh]">
           {equipped.length > 0 ? (
             equipped.map((equip, i) => (
@@ -238,9 +238,9 @@ export default function EquipmentPage() {
             <p className="text-white">장착된 장비가 없습니다.</p>
           )}
         </div>
-        <hr className="border-[1px] border-[#FFFFFF] w-[100%]  absolute top-[50vh]"/>
+        <hr className="border-[1px] border-[#FFFFFF] w-[100%]  absolute top-[50vh]" />
         <p className="text-white text-[2vh] absolute top-[53vh]">보유 장비</p>
-        <hr className="border-[1px] border-[#FFFFFF] w-[100%] absolute top-[58vh]"/>
+        <hr className="border-[1px] border-[#FFFFFF] w-[100%] absolute top-[58vh]" />
         <div className="grid grid-cols-5 gap-7 overflow-y-auto h-[40vh] absolute top-[60vh]">
           {inventory.length > 0 ? (
             inventory.map((equip, i) => (
